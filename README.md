@@ -1,4 +1,4 @@
-# Knowledge Gap Mitigation System (KGMS)
+# Research Knowledge Gaps Mitigation (RKGM)
 
 Automatically identifies what you need to know before reading a research paper, then generates a personalised, chronologically ordered learning document — sourced from the paper's own reference hierarchy.
 
