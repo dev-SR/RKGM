@@ -24,9 +24,10 @@ Free at [console.groq.com](https://console.groq.com). The free tier (14,400 toke
 ### 2. Install dependencies
 
 ```bash
-git clone <repo>
-cd kgms
-pip install -r requirements.txt
+git clone https://github.com/sharukhn32/Research-Knowledge-Gaps.git
+cd Research-Knowledge-Gaps
+uv venv && source .venv/bin/activate && uv pip install -r requirements.txt
+# pip install -r requirements.txt
 ```
 
 For better PDF parsing (recommended — handles academic two-column layouts):
@@ -43,38 +44,6 @@ streamlit run app.py
 ```
 
 Then open `http://localhost:8501` in your browser.
-
----
-
-## Quick Start (No UI)
-
-```python
-import os
-os.environ["GROQ_API_KEY"] = "your_key_here"
-
-from pipeline import run_phase_a, run_phase_b
-
-# Phase A — runs on abstracts only, no PDFs needed
-state = run_phase_a(
-    paper_input="2405.20139",          # arXiv ID for GNN-RAG paper
-    user_gaps=["attention mechanism"],  # optional: concepts you want explained
-)
-
-print(f"Detected {len(state.gaps)} knowledge gaps")
-for gap in state.gaps:
-    print(f"  [{gap.gap_type.value}] {gap.concept} (confidence: {gap.confidence:.0%})")
-
-print(f"\nCandidate papers: {len(state.candidates)}")
-for c in state.candidates[:5]:
-    print(f"  {'✅' if c.pdf_available else '❌'} {c.paper.title[:60]} ({c.paper.year})")
-
-# Phase B — generates the learning document (requires PDFs)
-# The pipeline auto-fetches open-access PDFs via Unpaywall/arXiv
-state = run_phase_b(state, auto_fetch=True)
-
-print(f"\nLearning document ({len(state.final_document)} chars):")
-print(state.final_document[:500] + "…")
-```
 
 ---
 
@@ -118,11 +87,11 @@ kgms/
 ## Architecture
 
 ### Model Routing
-| Task | Model | Why |
-|---|---|---|
-| Gap detection (×3), grounding checks, eval agent, rationale, cluster summary | Groq Llama 3.1 8B | Structured extraction — 8B is reliable and fast |
-| Writing Agent, ordering, sub-gap detection | Groq Llama 3.3 70B | Multi-paragraph generation needs the larger model |
-| Embeddings, reranking | Local (sentence-transformers) | Zero API cost, no rate limits |
+| Task                                                                         | Model                         | Why                                               |
+| ---------------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------- |
+| Gap detection (×3), grounding checks, eval agent, rationale, cluster summary | Groq Llama 3.1 8B             | Structured extraction — 8B is reliable and fast   |
+| Writing Agent, ordering, sub-gap detection                                   | Groq Llama 3.3 70B            | Multi-paragraph generation needs the larger model |
+| Embeddings, reranking                                                        | Local (sentence-transformers) | Zero API cost, no rate limits                     |
 
 ### Retrieval Pipeline
 ```
@@ -167,10 +136,10 @@ FAITHFULNESS_GATE   = 0.70    # RAGAS faithfulness minimum before retry
 
 ## Supported Paper Input Formats
 
-| Format | Example |
-|---|---|
-| arXiv ID | `2405.20139` or `arXiv:2405.20139` |
-| DOI | `10.1109/ICCIT57492.2022.10103286` |
+| Format              | Example                                    |
+| ------------------- | ------------------------------------------ |
+| arXiv ID            | `2405.20139` or `arXiv:2405.20139`         |
+| DOI                 | `10.1109/ICCIT57492.2022.10103286`         |
 | Semantic Scholar ID | `649def34f8be52c8b66281af98ae884c09aef38b` |
 
 ---
@@ -178,7 +147,8 @@ FAITHFULNESS_GATE   = 0.70    # RAGAS faithfulness minimum before retry
 ## Running Tests
 
 ```bash
-python smoke_test.py
+# base paper: https://arxiv.org/pdf/2405.20139
+python test_phase_a.py --paper 2405.20139 --pdf path/to/2405.20139v1.pdf --depth 1
 ```
 
 All 12 tests run with mocked API calls — no API key or internet required.
@@ -187,11 +157,11 @@ All 12 tests run with mocked API calls — no API key or internet required.
 
 ## Tier Delivery Plan
 
-| Tier | What works | Estimated time |
-|---|---|---|
-| **MVP** | Phase A complete: gap detection + candidate papers + Streamlit UI | Weeks 1–5 |
-| **Tier 2** | + Phase B: PDF ingestion + dense retrieval + single-pass generation | Weeks 6–8 |
-| **Tier 3** | + Full hybrid retrieval + eval loop + multi-hop + RAGAS gate | Weeks 9–12 |
+| Tier       | What works                                                          | Estimated time |
+| ---------- | ------------------------------------------------------------------- | -------------- |
+| **MVP**    | Phase A complete: gap detection + candidate papers + Streamlit UI   | Weeks 1–5      |
+| **Tier 2** | + Phase B: PDF ingestion + dense retrieval + single-pass generation | Weeks 6–8      |
+| **Tier 3** | + Full hybrid retrieval + eval loop + multi-hop + RAGAS gate        | Weeks 9–12     |
 
 The MVP (Phase A only) is a complete, demonstrable system. Phase B adds depth but is not required for a useful output.
 
@@ -199,17 +169,17 @@ The MVP (Phase A only) is a complete, demonstrable system. Phase B adds depth bu
 
 ## Free Tool Choices
 
-| Layer | Tool | Alternative | Reason chosen |
-|---|---|---|---|
-| LLM | Groq free tier | OpenAI (paid) | Free, 14k tok/min on 70B |
-| Embeddings | sentence-transformers (local) | OpenAI embeddings (paid) | Zero cost, no rate limit |
-| Vector DB | ChromaDB in-memory | Qdrant, Pinecone | No server, zero infra |
-| Sparse retrieval | bm25s | Elasticsearch | Pure Python, zero infra |
-| Reranking | cross-encoder (local) | Cohere Rerank (paid) | Local, free, high quality |
-| PDF parsing | marker-pdf | PyMuPDF | Trained on academic papers |
-| Graph | NetworkX + leidenalg | — | Standard, free, no infra |
-| Paper APIs | Semantic Scholar + arXiv + Unpaywall | CrossRef, PubMed | Best CS coverage, all free |
-| Evaluation | RAGAS | Custom metrics | RAGAS is free and standard |
+| Layer            | Tool                                 | Alternative              | Reason chosen              |
+| ---------------- | ------------------------------------ | ------------------------ | -------------------------- |
+| LLM              | Groq free tier                       | OpenAI (paid)            | Free, 14k tok/min on 70B   |
+| Embeddings       | sentence-transformers (local)        | OpenAI embeddings (paid) | Zero cost, no rate limit   |
+| Vector DB        | ChromaDB in-memory                   | Qdrant, Pinecone         | No server, zero infra      |
+| Sparse retrieval | bm25s                                | Elasticsearch            | Pure Python, zero infra    |
+| Reranking        | cross-encoder (local)                | Cohere Rerank (paid)     | Local, free, high quality  |
+| PDF parsing      | marker-pdf                           | PyMuPDF                  | Trained on academic papers |
+| Graph            | NetworkX + leidenalg                 | —                        | Standard, free, no infra   |
+| Paper APIs       | Semantic Scholar + arXiv + Unpaywall | CrossRef, PubMed         | Best CS coverage, all free |
+| Evaluation       | RAGAS                                | Custom metrics           | RAGAS is free and standard |
 
 ---
 

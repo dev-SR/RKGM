@@ -1,37 +1,16 @@
-# ── LLM ───────────────────────────────────────────────────────────────────
-groq>=0.12.0                    # Groq API client (free tier: llama-3.3-70b, llama-3.1-8b)
+groq>=0.12.0
+sentence-transformers>=3.0.0
+torch>=2.0.0
+chromadb>=0.5.0
+bm25s>=0.1.10
+networkx>=3.0
+igraph>=0.11.0
+leidenalg>=0.10.0
+PyMuPDF>=1.23.0
+requests>=2.31.0
+httpx>=0.25.0
+scikit-learn>=1.3.0
+numpy>=1.24.0
+streamlit>=1.35.0
+python-dotenv>=1.0.0
 
-# ── Embeddings & reranking (all local, zero API cost) ─────────────────────
-sentence-transformers>=3.0.0    # all-MiniLM-L6-v2 embeddings + cross-encoder reranking
-torch>=2.0.0                    # required by sentence-transformers
-
-# ── Vector store ──────────────────────────────────────────────────────────
-chromadb>=0.5.0                 # in-memory vector DB, no server needed
-
-# ── Sparse retrieval ──────────────────────────────────────────────────────
-bm25s>=0.1.10                   # pure-Python BM25, no Elasticsearch
-
-# ── Graph ─────────────────────────────────────────────────────────────────
-networkx>=3.0                   # reference graph construction + traversal
-igraph>=0.11.0                  # required by leidenalg
-leidenalg>=0.10.0               # Leiden community detection (SurveyG horizontal clustering)
-
-# ── PDF parsing ────────────────────────────────────────────────────────────
-PyMuPDF>=1.23.0                 # fallback PDF parser (fitz)
-# marker-pdf: install separately — see README (large model download)
-# pip install marker-pdf
-
-# ── HTTP + utilities ───────────────────────────────────────────────────────
-requests>=2.31.0                # Semantic Scholar, Unpaywall, arXiv, PDF download
-httpx>=0.25.0                   # async HTTP (used by groq client)
-
-# ── ML utilities ──────────────────────────────────────────────────────────
-scikit-learn>=1.3.0             # TF-IDF fallback embedder, cosine similarity
-numpy>=1.24.0                   # array operations throughout
-
-# ── Evaluation ────────────────────────────────────────────────────────────
-# ragas>=0.1.0                  # optional: RAGAS metrics (installs many deps)
-# datasets>=2.14.0              # required by ragas
-
-# ── UI ─────────────────────────────────────────────────────────────────────
-streamlit>=1.35.0               # single-file web app
