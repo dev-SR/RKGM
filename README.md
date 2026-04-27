@@ -19,7 +19,14 @@ Automatically identifies what you need to know before reading a research paper, 
 ## Setup
 
 ### 1. Get a Groq API key
+
 Free at [console.groq.com](https://console.groq.com). The free tier (14,400 tokens/min on Llama 3.3 70B) is sufficient for this project.
+
+Add the key to the `.env` file:
+
+```bash
+GROQ_API_KEY="your_key_here"
+```
 
 ### 2. Install dependencies
 
@@ -31,21 +38,11 @@ uv venv && source .venv/bin/activate && uv pip install -r requirements.txt
 ```
 
 For better PDF parsing (recommended — handles academic two-column layouts):
+
 ```bash
 pip install marker-pdf
 # Note: downloads ~1.5 GB of models on first use
 ```
-
-### 3. Run
-
-```bash
-export GROQ_API_KEY="your_key_here"
-streamlit run app.py
-```
-
-Then open `http://localhost:8501` in your browser.
-
----
 
 ## Project Structure
 
@@ -57,6 +54,7 @@ kgms/
 │   └── prompts.py        All LLM prompt templates — tune here
 │
 ├── utils/
+│   ├── ingest.py         marker-pdf → section chunking → ChromaDB indexing
 │   ├── cache.py          SQLite cache — all API calls cached on first fetch
 │   ├── embedder.py       sentence-transformers (local) + TF-IDF fallback
 │   ├── llm.py            Groq client with model routing + rate-limit retry
@@ -68,7 +66,6 @@ kgms/
 │   └── candidates.py     α/β/γ scoring + Leiden clustering + rationale
 │
 ├── phase_b/
-│   ├── ingest.py         marker-pdf → section chunking → ChromaDB indexing
 │   ├── retrieval.py      Dense + BM25 + RRF + cross-encoder reranking
 │   ├── ordering.py       Deterministic layer sort + LLM dependency refinement
 │   └── generation.py     Writing Agent + Eval Agent + multi-hop + doc assembly
@@ -78,7 +75,6 @@ kgms/
 │
 ├── pipeline.py           Phase A + Phase B orchestration
 ├── app.py                Streamlit UI (4 views)
-├── smoke_test.py         Full test suite (all external calls mocked)
 └── requirements.txt
 ```
 
@@ -87,6 +83,7 @@ kgms/
 ## Architecture
 
 ### Model Routing
+
 | Task                                                                         | Model                         | Why                                               |
 | ---------------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------- |
 | Gap detection (×3), grounding checks, eval agent, rationale, cluster summary | Groq Llama 3.1 8B             | Structured extraction — 8B is reliable and fast   |
@@ -101,11 +98,13 @@ Gap query
 ```
 
 ### Ordering Strategy
+
 1. **Stage 1 (deterministic):** Foundation → Development → Frontier, then by trendscore within layer
 2. **Stage 2 (LLM):** Refine within-layer order using dependency sentences
 3. **Cycle resolution:** Mutual dependency → higher trendscore paper goes first
 
 ### Gap Detection
+
 - Runs 3× at temperatures [0.1, 0.35, 0.6]
 - Keeps concepts appearing in ≥ 2/3 runs (self-consistency)
 - Validates each gap traces back to a specific passage in the BA
