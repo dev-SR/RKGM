@@ -149,6 +149,16 @@ FAITHFULNESS_GATE   = 0.70    # RAGAS faithfulness minimum before retry
 ```bash
 # base paper: https://arxiv.org/pdf/2405.20139
 python test_phase_a.py --paper 2405.20139 --pdf path/to/2405.20139v1.pdf --depth 1
+
+
+
+        # Examples:
+        #   python test_phase_a.py --paper 2405.20139
+        #   python test_phase_a.py --paper 2405.20139 --pdf gnn_rag.pdf
+        #   python test_phase_a.py --paper 2405.20139 --pdf paper.pdf --depth 2
+        #   python test_phase_a.py --paper 2405.20139 --gaps "GNN" "SPARQL" "KG embedding"
+        #   python test_phase_a.py --paper 2405.20139 --pdf paper.pdf --export ./results/
+        #   python test_phase_a.py --paper 2405.20139 --verbose --show-papers 20
 ```
 
 All 12 tests run with mocked API calls — no API key or internet required.
