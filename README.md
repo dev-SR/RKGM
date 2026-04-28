@@ -8,41 +8,13 @@ Automatically identifies what you need to know before reading a research paper, 
 
 ## What It Does
 
-1. **Phase A** — Give it any paper (arXiv ID, DOI, or Semantic Scholar ID). It fetches the paper's 3-level reference graph, detects knowledge gaps using structured LLM prompting, and returns a ranked list of candidate papers per gap with rationale. No PDFs needed.
+1. **Phase A** — Give it any paper (arXiv ID, DOI, Semantic Scholar ID or PDF file). It fetches the paper's 3-level reference graph, detects knowledge gaps using structured LLM prompting, and returns a ranked list of candidate papers per gap with rationale.
 
 2. **Human checkpoint** — Review the gap list, toggle off concepts you already know, add your own. The system auto-fetches open-access PDFs via Unpaywall and arXiv.
 
 3. **Phase B** — Ingests the PDFs, retrieves the most relevant passages per gap (hybrid dense + BM25 + cross-encoder reranking), generates a grounded explanation for each gap with inline citations, orders them chronologically, and assembles a complete learning document.
 
 ---
-
-## Setup
-
-### 1. Get a Groq API key
-
-Free at [console.groq.com](https://console.groq.com). The free tier (14,400 tokens/min on Llama 3.3 70B) is sufficient for this project.
-
-Add the key to the `.env` file:
-
-```bash
-GROQ_API_KEY="your_key_here"
-```
-
-### 2. Install dependencies
-
-```bash
-git clone https://github.com/sharukhn32/Research-Knowledge-Gaps.git
-cd Research-Knowledge-Gaps
-uv venv && source .venv/bin/activate && uv pip install -r requirements.txt
-# pip install -r requirements.txt
-```
-
-For better PDF parsing (recommended — handles academic two-column layouts):
-
-```bash
-pip install marker-pdf
-# Note: downloads ~1.5 GB of models on first use
-```
 
 ## Project Structure
 
@@ -91,6 +63,7 @@ kgms/
 | Embeddings, reranking                                                        | Local (sentence-transformers) | Zero API cost, no rate limits                     |
 
 ### Retrieval Pipeline
+
 ```
 Gap query
   → Dense (ChromaDB cosine, top-20)  ─┐
@@ -111,39 +84,35 @@ Gap query
 
 ---
 
-## Configuration
+## Setup & Usage
 
-All tunable parameters are in `core/config.py`:
+### 1. Get a Groq API key
 
-```python
-FOUNDATION_TOP_K     = 10     # how many papers qualify as Foundation layer
-FRONTIER_YEAR_CUTOFF = 2022   # papers from this year onwards → Frontier
+Free at [console.groq.com](https://console.groq.com). The free tier (14,400 tokens/min on Llama 3.3 70B) is sufficient for this project.
 
-SELF_CONSISTENCY_MIN = 2      # gap must appear in ≥ N/3 runs
-CONFIDENCE_THRESHOLD = 0.5    # discard ungrounded gaps below this
+Add the key to the `.env` file:
 
-ALPHA = 0.5    # candidate scoring: semantic similarity weight
-BETA  = 0.3    # candidate scoring: trendscore weight  
-GAMMA = 0.2    # candidate scoring: layer-match weight
-
-MAX_MULTIHOP_DEPTH  = 2       # max recursion depth for sub-gap detection
-MAX_EVAL_LOOPS      = 2       # Writing↔Eval agent iterations per gap
-FAITHFULNESS_GATE   = 0.70    # RAGAS faithfulness minimum before retry
+```bash
+GROQ_API_KEY="your_key_here"
 ```
 
----
+### 2. Install dependencies
 
-## Supported Paper Input Formats
+```bash
+git clone https://github.com/sharukhn32/Research-Knowledge-Gaps.git
+cd Research-Knowledge-Gaps
+uv venv && source .venv/bin/activate && uv pip install -r requirements.txt
+# pip install -r requirements.txt
+```
 
-| Format              | Example                                    |
-| ------------------- | ------------------------------------------ |
-| arXiv ID            | `2405.20139` or `arXiv:2405.20139`         |
-| DOI                 | `10.1109/ICCIT57492.2022.10103286`         |
-| Semantic Scholar ID | `649def34f8be52c8b66281af98ae884c09aef38b` |
+For better PDF parsing (recommended — handles academic two-column layouts):
 
----
+```bash
+pip install marker-pdf
+# Note: downloads ~1.5 GB of models on first use
+```
 
-## Running Tests
+### 3. Running Tests
 
 ```bash
 # base paper: https://arxiv.org/pdf/2405.20139
@@ -188,31 +157,35 @@ All 12 tests run with mocked API calls — no API key or internet required.
 
 ---
 
-## Tier Delivery Plan
+## Configuration
 
-| Tier       | What works                                                          | Estimated time |
-| ---------- | ------------------------------------------------------------------- | -------------- |
-| **MVP**    | Phase A complete: gap detection + candidate papers + Streamlit UI   | Weeks 1–5      |
-| **Tier 2** | + Phase B: PDF ingestion + dense retrieval + single-pass generation | Weeks 6–8      |
-| **Tier 3** | + Full hybrid retrieval + eval loop + multi-hop + RAGAS gate        | Weeks 9–12     |
+All tunable parameters are in `core/config.py`:
 
-The MVP (Phase A only) is a complete, demonstrable system. Phase B adds depth but is not required for a useful output.
+```python
+FOUNDATION_TOP_K     = 10     # how many papers qualify as Foundation layer
+FRONTIER_YEAR_CUTOFF = 2022   # papers from this year onwards → Frontier
+
+SELF_CONSISTENCY_MIN = 2      # gap must appear in ≥ N/3 runs
+CONFIDENCE_THRESHOLD = 0.5    # discard ungrounded gaps below this
+
+ALPHA = 0.5    # candidate scoring: semantic similarity weight
+BETA  = 0.3    # candidate scoring: trendscore weight  
+GAMMA = 0.2    # candidate scoring: layer-match weight
+
+MAX_MULTIHOP_DEPTH  = 2       # max recursion depth for sub-gap detection
+MAX_EVAL_LOOPS      = 2       # Writing↔Eval agent iterations per gap
+FAITHFULNESS_GATE   = 0.70    # RAGAS faithfulness minimum before retry
+```
 
 ---
 
-## Free Tool Choices
+## Supported Paper Input Formats
 
-| Layer            | Tool                                 | Alternative              | Reason chosen              |
-| ---------------- | ------------------------------------ | ------------------------ | -------------------------- |
-| LLM              | Groq free tier                       | OpenAI (paid)            | Free, 14k tok/min on 70B   |
-| Embeddings       | sentence-transformers (local)        | OpenAI embeddings (paid) | Zero cost, no rate limit   |
-| Vector DB        | ChromaDB in-memory                   | Qdrant, Pinecone         | No server, zero infra      |
-| Sparse retrieval | bm25s                                | Elasticsearch            | Pure Python, zero infra    |
-| Reranking        | cross-encoder (local)                | Cohere Rerank (paid)     | Local, free, high quality  |
-| PDF parsing      | marker-pdf                           | PyMuPDF                  | Trained on academic papers |
-| Graph            | NetworkX + leidenalg                 | —                        | Standard, free, no infra   |
-| Paper APIs       | Semantic Scholar + arXiv + Unpaywall | CrossRef, PubMed         | Best CS coverage, all free |
-| Evaluation       | RAGAS                                | Custom metrics           | RAGAS is free and standard |
+| Format              | Example                                    |
+| ------------------- | ------------------------------------------ |
+| arXiv ID            | `2405.20139` or `arXiv:2405.20139`         |
+| DOI                 | `10.1109/ICCIT57492.2022.10103286`         |
+| Semantic Scholar ID | `649def34f8be52c8b66281af98ae884c09aef38b` |
 
 ---
 
