@@ -20,7 +20,6 @@ from core.models import PipelineState, Paper
 from phase_a.gap_detection import detect_gaps
 from phase_a.candidates import match_candidates
 from utils.apis import fetch_paper, resolve_pdf_url, download_pdf
-from utils.ingest import parse_pdf_to_markdown
 
 # NOTE: phase_a.graph and all phase_b modules are imported lazily inside
 # the functions that need them.  This prevents import-time crashes when
@@ -175,202 +174,202 @@ def run_phase_a(
     return state
 
 
-# def run_phase_b(
-#     state: PipelineState,
-#     pdf_paths: dict[str, str] | None = None,  # paper_id -> local pdf path
-#     auto_fetch: bool = True,  # try Unpaywall/arXiv automatically
-#     progress_callback=None,
-# ) -> PipelineState:
-#     """
-#     Phase B: ingest PDFs, retrieve, generate, assemble document.
-#     Expects a PipelineState returned by run_phase_a.
+def run_phase_b(
+    state: PipelineState,
+    pdf_paths: dict[str, str] | None = None,  # paper_id -> local pdf path
+    auto_fetch: bool = True,  # try Unpaywall/arXiv automatically
+    progress_callback=None,
+) -> PipelineState:
+    """
+    Phase B: ingest PDFs, retrieve, generate, assemble document.
+    Expects a PipelineState returned by run_phase_a.
 
-#     pdf_paths: manually supplied PDFs (from UI upload)
-#     auto_fetch: also attempt automatic PDF fetch via Unpaywall/arXiv
-#     """
-#     # Lazy imports — phase_b deps (chromadb, marker-pdf, cross-encoder)
-#     # only loaded when Phase B actually runs
-#     from utils.ingest import ingest_pdfs
-#     from phase_b.retrieval import hybrid_retrieve
-#     from phase_b.ordering import order_gaps, build_dependency_map
-#     from phase_b.generation import (
-#         generate_explanation,
-#         detect_subgaps,
-#         assemble_document,
-#     )
+    pdf_paths: manually supplied PDFs (from UI upload)
+    auto_fetch: also attempt automatic PDF fetch via Unpaywall/arXiv
+    """
+    # Lazy imports — phase_b deps (chromadb, marker-pdf, cross-encoder)
+    # only loaded when Phase B actually runs
+    from utils.ingest import ingest_pdfs
+    from phase_b.retrieval import hybrid_retrieve
+    from phase_b.ordering import order_gaps, build_dependency_map
+    from phase_b.generation import (
+        generate_explanation,
+        detect_subgaps,
+        assemble_document,
+    )
 
-#     cb = progress_callback or (lambda msg: print(f"[pipeline] {msg}"))
+    cb = progress_callback or (lambda msg: print(f"[pipeline] {msg}"))
 
-#     if not state.ba_paper or not state.gaps:
-#         state.errors.append("Phase A must complete successfully before Phase B")
-#         return state
+    if not state.ba_paper or not state.gaps:
+        state.errors.append("Phase A must complete successfully before Phase B")
+        return state
 
-#     # ── Collect PDF paths (auto + manual) ─────────────────────────────────
-#     all_pdf_paths = dict(pdf_paths or {})
+    # ── Collect PDF paths (auto + manual) ─────────────────────────────────
+    all_pdf_paths = dict(pdf_paths or {})
 
-#     if auto_fetch:
-#         cb("Auto-fetching open-access PDFs…")
-#         download_dir = "/tmp/kgms_pdfs"
-#         os.makedirs(download_dir, exist_ok=True)
-#         _auto_fetch_pdfs(state, all_pdf_paths, download_dir, cb)
+    if auto_fetch:
+        cb("Auto-fetching open-access PDFs…")
+        download_dir = "/tmp/kgms_pdfs"
+        os.makedirs(download_dir, exist_ok=True)
+        _auto_fetch_pdfs(state, all_pdf_paths, download_dir, cb)
 
-#     if not all_pdf_paths:
-#         cb("No PDFs available — generating abstract-only explanations")
+    if not all_pdf_paths:
+        cb("No PDFs available — generating abstract-only explanations")
 
-#     # ── Ingest PDFs ────────────────────────────────────────────────────────
-#     cb("Ingesting and indexing PDFs…")
-#     try:
-#         chunks, collection = ingest_pdfs(
-#             pdf_paths=all_pdf_paths,
-#             papers=state.all_papers,
-#             progress_callback=cb,
-#         )
-#     except Exception as e:
-#         state.errors.append(f"PDF ingestion failed: {e}")
-#         chunks, collection = [], None
+    # ── Ingest PDFs ────────────────────────────────────────────────────────
+    cb("Ingesting and indexing PDFs…")
+    try:
+        chunks, collection = ingest_pdfs(
+            pdf_paths=all_pdf_paths,
+            papers=state.all_papers,
+            progress_callback=cb,
+        )
+    except Exception as e:
+        state.errors.append(f"PDF ingestion failed: {e}")
+        chunks, collection = [], None
 
-#     state.chunks = chunks
-#     state.chroma_collection = collection
-#     cb(f"Indexed {len(chunks)} chunks from {len(all_pdf_paths)} PDFs")
+    state.chunks = chunks
+    state.chroma_collection = collection
+    cb(f"Indexed {len(chunks)} chunks from {len(all_pdf_paths)} PDFs")
 
-#     # ── Determine ordering ─────────────────────────────────────────────────
-#     cb("Determining chronological learning order…")
-#     ordered_ids, dependencies = order_gaps(
-#         gaps=state.gaps,
-#         candidates=state.candidates,
-#         progress_callback=cb,
-#     )
-#     state.ordered_gap_ids = ordered_ids
-#     state.dependencies = dependencies
+    # ── Determine ordering ─────────────────────────────────────────────────
+    cb("Determining chronological learning order…")
+    ordered_ids, dependencies = order_gaps(
+        gaps=state.gaps,
+        candidates=state.candidates,
+        progress_callback=cb,
+    )
+    state.ordered_gap_ids = ordered_ids
+    state.dependencies = dependencies
 
-#     dep_map = build_dependency_map(dependencies)
-#     gap_map = {g.gap_id: g for g in state.gaps}
+    dep_map = build_dependency_map(dependencies)
+    gap_map = {g.gap_id: g for g in state.gaps}
 
-#     # ── Generate explanations (with multi-hop) ─────────────────────────────
-#     known_concepts: set[str] = set()
-#     explanations: list = []
-#     gap_queue: list = [gap_map[gid] for gid in ordered_ids if gid in gap_map]
-#     i = 0
+    # ── Generate explanations (with multi-hop) ─────────────────────────────
+    known_concepts: set[str] = set()
+    explanations: list = []
+    gap_queue: list = [gap_map[gid] for gid in ordered_ids if gid in gap_map]
+    i = 0
 
-#     while i < len(gap_queue):
-#         gap = gap_queue[i]
-#         i += 1
+    while i < len(gap_queue):
+        gap = gap_queue[i]
+        i += 1
 
-#         cb(f"Generating explanation {i}/{len(gap_queue)}: {gap.concept}…")
+        cb(f"Generating explanation {i}/{len(gap_queue)}: {gap.concept}…")
 
-#         # Retrieve chunks for this gap
-#         if collection and chunks:
-#             retrieved_chunks, is_abstract_only = hybrid_retrieve(
-#                 gap=gap,
-#                 collection=collection,
-#                 all_chunks=chunks,
-#             )
-#         else:
-#             retrieved_chunks, is_abstract_only = [], True
+        # Retrieve chunks for this gap
+        if collection and chunks:
+            retrieved_chunks, is_abstract_only = hybrid_retrieve(
+                gap=gap,
+                collection=collection,
+                all_chunks=chunks,
+            )
+        else:
+            retrieved_chunks, is_abstract_only = [], True
 
-#         # Generate explanation
-#         try:
-#             exp = generate_explanation(
-#                 gap=gap,
-#                 chunks=retrieved_chunks,
-#                 papers=state.all_papers,
-#                 graph=state.reference_graph,
-#                 ba_title=state.ba_paper.title,
-#                 known_concepts=known_concepts,
-#                 is_abstract_only=is_abstract_only,
-#                 progress_callback=cb,
-#             )
+        # Generate explanation
+        try:
+            exp = generate_explanation(
+                gap=gap,
+                chunks=retrieved_chunks,
+                papers=state.all_papers,
+                graph=state.reference_graph,
+                ba_title=state.ba_paper.title,
+                known_concepts=known_concepts,
+                is_abstract_only=is_abstract_only,
+                progress_callback=cb,
+            )
 
-#             # RAGAS gate: if faithfulness low, expand top-k and retry once
-#             if not is_abstract_only and exp.confidence < 0.55 and collection:
-#                 cb(
-#                     f"Low confidence ({exp.confidence:.2f}), expanding retrieval for '{gap.concept}'…"
-#                 )
-#                 from core.config import RERANK_TOP_N
+            # RAGAS gate: if faithfulness low, expand top-k and retry once
+            if not is_abstract_only and exp.confidence < 0.55 and collection:
+                cb(
+                    f"Low confidence ({exp.confidence:.2f}), expanding retrieval for '{gap.concept}'…"
+                )
+                from core.config import RERANK_TOP_N
 
-#                 expanded_chunks, _ = hybrid_retrieve(
-#                     gap=gap,
-#                     collection=collection,
-#                     all_chunks=chunks,
-#                     top_k_override=15,  # expand from 5 to 15
-#                 )
-#                 if len(expanded_chunks) > len(retrieved_chunks):
-#                     exp = generate_explanation(
-#                         gap=gap,
-#                         chunks=expanded_chunks,
-#                         papers=state.all_papers,
-#                         graph=state.reference_graph,
-#                         ba_title=state.ba_paper.title,
-#                         known_concepts=known_concepts,
-#                         is_abstract_only=False,
-#                         progress_callback=cb,
-#                     )
+                expanded_chunks, _ = hybrid_retrieve(
+                    gap=gap,
+                    collection=collection,
+                    all_chunks=chunks,
+                    top_k_override=15,  # expand from 5 to 15
+                )
+                if len(expanded_chunks) > len(retrieved_chunks):
+                    exp = generate_explanation(
+                        gap=gap,
+                        chunks=expanded_chunks,
+                        papers=state.all_papers,
+                        graph=state.reference_graph,
+                        ba_title=state.ba_paper.title,
+                        known_concepts=known_concepts,
+                        is_abstract_only=False,
+                        progress_callback=cb,
+                    )
 
-#         except Exception as e:
-#             cb(f"Warning: explanation generation failed for '{gap.concept}': {e}")
-#             exp = _fallback_explanation(gap)
+        except Exception as e:
+            cb(f"Warning: explanation generation failed for '{gap.concept}': {e}")
+            exp = _fallback_explanation(gap)
 
-#         exp.order_position = len(explanations)
-#         exp.dependency_note = dep_map.get(gap.gap_id, "")
-#         explanations.append(exp)
-#         known_concepts.add(gap.concept.lower())
+        exp.order_position = len(explanations)
+        exp.dependency_note = dep_map.get(gap.gap_id, "")
+        explanations.append(exp)
+        known_concepts.add(gap.concept.lower())
 
-#         # Multi-hop: detect sub-gaps introduced by this explanation
-#         depth = _get_hop_depth(gap.gap_id)
-#         if depth < 2:
-#             subgaps = detect_subgaps(
-#                 explanation_text=exp.explanation_text,
-#                 parent_gap=gap,
-#                 known_concepts=known_concepts,
-#                 depth=depth,
-#             )
-#             # Insert sub-gaps immediately after current position
-#             for j, sg in enumerate(subgaps):
-#                 if sg.concept.lower() not in known_concepts:
-#                     gap_queue.insert(i + j, sg)
-#                     cb(
-#                         f"Sub-gap detected: {sg.concept} (will explain before continuing)"
-#                     )
+        # Multi-hop: detect sub-gaps introduced by this explanation
+        depth = _get_hop_depth(gap.gap_id)
+        if depth < 2:
+            subgaps = detect_subgaps(
+                explanation_text=exp.explanation_text,
+                parent_gap=gap,
+                known_concepts=known_concepts,
+                depth=depth,
+            )
+            # Insert sub-gaps immediately after current position
+            for j, sg in enumerate(subgaps):
+                if sg.concept.lower() not in known_concepts:
+                    gap_queue.insert(i + j, sg)
+                    cb(
+                        f"Sub-gap detected: {sg.concept} (will explain before continuing)"
+                    )
 
-#     state.explanations = explanations
+    state.explanations = explanations
 
-#     # ── Coverage verification ──────────────────────────────────────────────
-#     try:
-#         from eval.coverage import verify_coverage, coverage_badge
+    # ── Coverage verification ──────────────────────────────────────────────
+    try:
+        from eval.coverage import verify_coverage, coverage_badge
 
-#         coverage = verify_coverage(state.gaps, explanations)
-#         badge, label = coverage_badge(coverage.coverage_score)
-#         cb(
-#             f"Coverage check: {badge} {label} "
-#             f"({coverage.covered} covered, {coverage.abstract_only} abstract-only, "
-#             f"{coverage.missing} missing)"
-#         )
-#         if coverage.recommendations:
-#             for rec in coverage.recommendations:
-#                 cb(f"  ↳ {rec}")
-#         state.errors.extend(
-#             [
-#                 f"[coverage] {r}"
-#                 for r in coverage.recommendations
-#                 if "skipped" in r or "ungrounded" in r
-#             ]
-#         )
-#         # Attach to state for UI display
-#         state._coverage_report = coverage
-#     except Exception as e:
-#         cb(f"Coverage check failed (non-critical): {e}")
+        coverage = verify_coverage(state.gaps, explanations)
+        badge, label = coverage_badge(coverage.coverage_score)
+        cb(
+            f"Coverage check: {badge} {label} "
+            f"({coverage.covered} covered, {coverage.abstract_only} abstract-only, "
+            f"{coverage.missing} missing)"
+        )
+        if coverage.recommendations:
+            for rec in coverage.recommendations:
+                cb(f"  ↳ {rec}")
+        state.errors.extend(
+            [
+                f"[coverage] {r}"
+                for r in coverage.recommendations
+                if "skipped" in r or "ungrounded" in r
+            ]
+        )
+        # Attach to state for UI display
+        state._coverage_report = coverage
+    except Exception as e:
+        cb(f"Coverage check failed (non-critical): {e}")
 
-#     # ── Assemble document ──────────────────────────────────────────────────
-#     cb("Assembling learning document…")
-#     state.final_document = assemble_document(
-#         ordered_explanations=explanations,
-#         ba_title=state.ba_paper.title,
-#         ba_abstract=state.ba_paper.abstract,
-#         dependency_map=dep_map,
-#     )
+    # ── Assemble document ──────────────────────────────────────────────────
+    cb("Assembling learning document…")
+    state.final_document = assemble_document(
+        ordered_explanations=explanations,
+        ba_title=state.ba_paper.title,
+        ba_abstract=state.ba_paper.abstract,
+        dependency_map=dep_map,
+    )
 
-#     cb("Phase B complete ✓")
-#     return state
+    cb("Phase B complete ✓")
+    return state
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
@@ -402,6 +401,7 @@ def _get_ba_text(ba: Paper, cb, explicit_pdf_path: str | None = None) -> str:
       3. resolve via Unpaywall / arXiv
       4. abstract          — fallback (gap detection still works, just less precise)
     """
+    from utils.ingest import parse_pdf_to_markdown
 
     # 1. Explicit local PDF (most reliable — user chose this file)
     if explicit_pdf_path and os.path.exists(explicit_pdf_path):

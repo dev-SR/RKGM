@@ -365,8 +365,9 @@ def _print_summary(state, elapsed, args):
     banner("Summary", C.GREEN)
     gaps = state.gaps
     cands = state.candidates
-    pdf_avail = sum(1 for c in cands if c.pdf_available)
-    unique_p = len({c.paper.paper_id for c in cands})
+    unique_papers = {c.paper.paper_id: c for c in cands}  # dedup by paper_id
+    pdf_avail = sum(1 for c in unique_papers.values() if c.pdf_available)
+    unique_p = len(unique_papers)
 
     kv("Total time", f"{elapsed:.1f}s")
     kv(
