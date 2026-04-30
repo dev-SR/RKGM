@@ -322,6 +322,7 @@ def run_phase_b(
                 parent_gap=gap,
                 known_concepts=known_concepts,
                 depth=depth,
+                parent_had_pdf=not exp.is_abstract_only,
             )
             # Insert sub-gaps immediately after current position
             for j, sg in enumerate(subgaps):
@@ -354,10 +355,23 @@ def run_phase_b(
                 if "skipped" in r or "ungrounded" in r
             ]
         )
-        # Attach to state for UI display
         state._coverage_report = coverage
     except Exception as e:
         cb(f"Coverage check failed (non-critical): {e}")
+
+    # ── Generate document preamble ─────────────────────────────────────────
+    cb("Generating document preamble…")
+    try:
+        from phase_b.generation import generate_document_preamble
+
+        preamble = generate_document_preamble(
+            ba_title=state.ba_paper.title,
+            ba_abstract=state.ba_paper.abstract,
+            gaps=state.gaps,
+        )
+    except Exception as e:
+        cb(f"Preamble generation failed (non-critical): {e}")
+        preamble = None
 
     # ── Assemble document ──────────────────────────────────────────────────
     cb("Assembling learning document…")
@@ -366,6 +380,8 @@ def run_phase_b(
         ba_title=state.ba_paper.title,
         ba_abstract=state.ba_paper.abstract,
         dependency_map=dep_map,
+        gaps=state.gaps,
+        preamble_text=preamble,
     )
 
     cb("Phase B complete ✓")

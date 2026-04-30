@@ -153,6 +153,26 @@ def detect_gaps(
     # Sort by confidence descending
     validated.sort(key=lambda x: x.confidence, reverse=True)
 
+    # ── Cap historical gaps ────────────────────────────────────────────────
+    # Historical gaps = author citation mentions. A paper with 40 citations
+    # produces 40 historical gaps, drowning out the real concept gaps.
+    # Keep only the top MAX_HISTORICAL_GAPS by confidence; prioritise all
+    # other gap types first.
+    MAX_HISTORICAL_GAPS = 5
+    non_historical = [g for g in validated if g.gap_type != GapType.HISTORICAL]
+    historical = [g for g in validated if g.gap_type == GapType.HISTORICAL]
+
+    if len(historical) > MAX_HISTORICAL_GAPS:
+        kept_historical = historical[:MAX_HISTORICAL_GAPS]
+        dropped = len(historical) - MAX_HISTORICAL_GAPS
+        print(
+            f"[gaps] Capped historical gaps: kept {MAX_HISTORICAL_GAPS}, "
+            f"dropped {dropped} low-confidence citation gaps"
+        )
+        validated = non_historical + kept_historical
+        # Re-sort after merge
+        validated.sort(key=lambda x: (x.gap_type == GapType.HISTORICAL, -x.confidence))
+
     set_cached(cache_key, [_gap_to_dict(g) for g in validated])
     return validated
 

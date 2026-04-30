@@ -10,29 +10,31 @@ GAP_DETECTION_USER = """Paper text:
 {paper_text}
 </paper>
 
-Identify knowledge gaps. For each gap output a JSON object with EXACTLY these fields:
+Identify knowledge gaps a reader needs to understand before reading this paper.
+For each gap output a JSON object with EXACTLY these fields:
 - "concept": short name of the concept (5 words max)
 - "gap_type": one of ["terminology", "methodology", "benchmark", "historical", "mathematical"]
   * terminology  = field-specific jargon used without definition
   * methodology  = technique applied but not explained
   * benchmark    = dataset/benchmark mentioned without context
-  * historical   = "as shown in [X]" without explaining what X actually showed
+  * historical   = a prior work the paper BUILDS ON that the reader must understand
   * mathematical = equation steps that are skipped without derivation
 - "difficulty": one of ["beginner", "intermediate", "advanced"]
 - "domain": field of knowledge (e.g. "deep learning", "graph theory")
-- "why_needed": one sentence — why the paper assumes this (be specific to the paper)
+- "why_needed": one sentence — why the paper assumes this (be specific, not generic)
 - "layer_hint": one of ["foundation", "development", "frontier"]
-  * foundation = classical concept, explained in seminal highly-cited papers
-  * development = established but more recent technique
-  * frontier    = cutting-edge, only in very recent papers
 - "retrieval_query": an academic search query to find papers explaining this concept
 - "source_passage": the exact phrase from the paper that triggered this gap (quote it)
 - "confidence": your confidence this is a real gap, 0.0–1.0
 
-IMPORTANT: Also mine the Related Work section — every citation like "as shown in [X]"
-or "following [X]" where the BA does not re-explain what X did is a historical gap.
+CRITICAL RULES for historical gaps:
+- ONLY include a historical gap if the paper RELIES ON that work's specific technique
+  or finding — not just mentions it in passing
+- Include AT MOST 5 historical gaps — pick only the most important cited works
+- Do NOT include every citation in Related Work — only foundational dependencies
+- Prefer terminology, methodology, and mathematical gaps over historical ones
 
-User-specified gaps to include (always include these even if not in the text): {user_gaps}
+User-specified gaps to always include: {user_gaps}
 
 Output a JSON array only. No preamble."""
 
@@ -166,8 +168,53 @@ SUBGAP_PROMPT = """This explanation was just generated for the concept "{concept
 {explanation}
 </explanation>
 
-List any technical terms this explanation uses WITHOUT defining,
-where those terms are NOT in this already-explained set: {known_concepts}
+Already-explained concepts (do NOT include these): {known_concepts}
 
-Output a JSON array of strings only. Maximum 3 items. If none, output [].
+List ONLY technical terms this explanation uses WITHOUT defining, that a researcher
+unfamiliar with the field would not understand without a separate explanation.
+
+STRICT RULES — do NOT include:
+- Author names or citations like "Brown et al.", "Smith et al.", any "et al." pattern
+- Generic terms: "parameter", "model", "task", "method", "approach", "system", "data"
+- Terms that are obvious from context or self-explanatory
+- Anything already in the known concepts list above
+
+Output a JSON array of strings only. Maximum 2 items. If none (or all filtered), output [].
 Example: ["attention mechanism", "softmax function"]"""
+
+
+# ── Document Preamble ──────────────────────────────────────────────────────
+
+PREAMBLE_PROMPT = """You are writing the introduction to a personalised learning document.
+
+Target paper: "{ba_title}"
+Abstract: {ba_abstract}
+
+The reader needs to understand these prerequisite concepts before reading the paper:
+{gap_list}
+
+Write a concise, engaging 2-paragraph introduction (plain text, no bullet points, no markdown):
+Paragraph 1: What the target paper is about and why reading it requires background knowledge.
+Paragraph 2: What this document covers and how the concepts connect to each other.
+
+Be specific — reference actual concept names from the list above.
+Write for a researcher, not a student. Keep it under 150 words total."""
+
+
+# ── Historical gap section title ───────────────────────────────────────────
+
+HISTORICAL_TITLE_PROMPT = """A research paper references this prior work without explaining it:
+
+Citation: "{concept}"
+Why it matters: {why_needed}
+Source passage: "{source_passage}"
+
+Write a short section title (6 words max) that describes WHAT THIS WORK CONTRIBUTED,
+not who wrote it. Focus on the key technique, finding, or concept it introduced.
+
+Examples:
+  "Brown et al." → "Large-Scale Language Model Pre-training"
+  "Vaswani et al." → "Transformer Self-Attention Architecture"
+  "Kipf and Welling" → "Graph Convolutional Network Fundamentals"
+
+Output only the title string, nothing else."""
