@@ -105,13 +105,6 @@ uv venv && source .venv/bin/activate && uv pip install -r requirements.txt
 # pip install -r requirements.txt
 ```
 
-For better PDF parsing (recommended — handles academic two-column layouts):
-
-```bash
-pip install marker-pdf
-# Note: downloads ~1.5 GB of models on first use
-```
-
 ### 3. Running Tests
 
 ```bash
@@ -153,7 +146,12 @@ python test_phase_b.py --paper 2405.20139 --pdf /home/sharukh/Downloads/temp/240
 python test_phase_b.py --paper 2405.20139 --pdf p.pdf --out ./results/
 ```
 
-All 12 tests run with mocked API calls — no API key or internet required.
+For better PDF parsing (recommended — handles academic two-column layouts):
+
+```bash
+pip install marker-pdf
+# Note: downloads ~1.5 GB of models on first use
+```
 
 ---
 
