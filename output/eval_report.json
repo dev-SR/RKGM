@@ -1,0 +1,294 @@
+{
+  "meta": {
+    "paper_title": "GNN-RAG: Graph Neural Retrieval for Large Language Model Reasoning",
+    "state_file": "./output/phase_a_state_2405.20139.json",
+    "doc_file": "./output/learning_roadmap_2405.20139.md",
+    "total_sections": 26,
+    "full_text_sections": 0,
+    "abstract_sections": 26,
+    "total_words": 7842,
+    "total_citations": 0,
+    "eval_time_s": 0.4
+  },
+  "coverage": {
+    "coverage_score": 0.242,
+    "badge": "🔴",
+    "label": "Poor (24%)",
+    "covered": 0,
+    "abstract_only": 26,
+    "uncited": 0,
+    "missing": 17,
+    "total_sections": 43,
+    "items": [
+      {
+        "concept": "Transformer-XL Model Pre-training Techniques",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 299
+      },
+      {
+        "concept": "Multitask Language Model Pre-training Framework",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 282
+      },
+      {
+        "concept": "Advancements in Large Language Model Training",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 295
+      },
+      {
+        "concept": "Pretraining on Large Textual Corpora",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 281
+      },
+      {
+        "concept": "Large-Scale Language Model Pre-training",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 268
+      },
+      {
+        "concept": "Cost of Pretraining Large Language Models",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 261
+      },
+      {
+        "concept": "Vrandeˇci´c and Krötzsch",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 283
+      },
+      {
+        "concept": "Graph Convolutional Network Fundamentals",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 272
+      },
+      {
+        "concept": "Graph Attention Mechanism Development",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 282
+      },
+      {
+        "concept": "Graph Convolutional Network Extensions",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 291
+      },
+      {
+        "concept": "KGQA Method Classification Framework",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 288
+      },
+      {
+        "concept": "Retrieval-Augmented Generation Framework Development",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 350
+      },
+      {
+        "concept": "Knowledge Graph Fact Retrieval Techniques",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 291
+      },
+      {
+        "concept": "Graph Attention Network (RAG) Architecture",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 288
+      },
+      {
+        "concept": "LLM-Based Retrieval Method Limitations",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 291
+      },
+      {
+        "concept": "Large-Scale Language Model Retrieval Techniques",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 287
+      },
+      {
+        "concept": "WebQSP",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 294
+      },
+      {
+        "concept": "CWQ",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 327
+      },
+      {
+        "concept": "Information Retrieval",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 292
+      },
+      {
+        "concept": "LLMs",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 316
+      },
+      {
+        "concept": "RAG",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 286
+      },
+      {
+        "concept": "GPT-4",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 320
+      },
+      {
+        "concept": "KGQA",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 343
+      },
+      {
+        "concept": "Semantic Parsing",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 352
+      },
+      {
+        "concept": "GNNs",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 316
+      },
+      {
+        "concept": "Graph-augmented LMs",
+        "status": "abstract_only",
+        "citations": 0,
+        "word_count": 387
+      },
+      {
+        "concept": "Baek et al.",
+        "status": "missing",
+        "citations": 0,
+        "word_count": 0
+      },
+      {
+        "concept": "Luo et al.",
+        "status": "missing",
+        "citations": 0,
+        "word_count": 0
+      },
+      {
+        "concept": "Lan et al.",
+        "status": "missing",
+        "citations": 0,
+        "word_count": 0
+      },
+      {
+        "concept": "Lewis et al.",
+        "status": "missing",
+        "citations": 0,
+        "word_count": 0
+      },
+      {
+        "concept": "Wu et al.",
+        "status": "missing",
+        "citations": 0,
+        "word_count": 0
+      },
+      {
+        "concept": "He et al.",
+        "status": "missing",
+        "citations": 0,
+        "word_count": 0
+      },
+      {
+        "concept": "Sun et al.",
+        "status": "missing",
+        "citations": 0,
+        "word_count": 0
+      },
+      {
+        "concept": "Bommasani et al.",
+        "status": "missing",
+        "citations": 0,
+        "word_count": 0
+      },
+      {
+        "concept": "Brown et al.",
+        "status": "missing",
+        "citations": 0,
+        "word_count": 0
+      },
+      {
+        "concept": "Chowdhery et al.",
+        "status": "missing",
+        "citations": 0,
+        "word_count": 0
+      },
+      {
+        "concept": "Kaplan et al.",
+        "status": "missing",
+        "citations": 0,
+        "word_count": 0
+      },
+      {
+        "concept": "Hoffmann et al.",
+        "status": "missing",
+        "citations": 0,
+        "word_count": 0
+      },
+      {
+        "concept": "Gururangan et al.",
+        "status": "missing",
+        "citations": 0,
+        "word_count": 0
+      },
+      {
+        "concept": "Zhang et al.",
+        "status": "missing",
+        "citations": 0,
+        "word_count": 0
+      },
+      {
+        "concept": "Kipf and Welling",
+        "status": "missing",
+        "citations": 0,
+        "word_count": 0
+      },
+      {
+        "concept": "Veliˇckovi´c et al.",
+        "status": "missing",
+        "citations": 0,
+        "word_count": 0
+      },
+      {
+        "concept": "Schlichtkrull et al.",
+        "status": "missing",
+        "citations": 0,
+        "word_count": 0
+      }
+    ]
+  },
+  "citations": {
+    "total_citations": 0,
+    "grounded": 0,
+    "grounding_rate": 0.0,
+    "ungrounded": []
+  },
+  "quality": {
+    "avg_quality_score": 0.0,
+    "sections_scored": 0,
+    "per_section": []
+  }
+}

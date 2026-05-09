@@ -16,42 +16,6 @@ Automatically identifies what you need to know before reading a research paper, 
 
 ---
 
-## Project Structure
-
-```
-kgms/
-├── core/
-│   ├── models.py         All dataclasses (Paper, KnowledgeGap, GapExplanation, …)
-│   ├── config.py         All constants, thresholds, model names — tune here
-│   └── prompts.py        All LLM prompt templates — tune here
-│
-├── utils/
-│   ├── ingest.py         marker-pdf → section chunking → ChromaDB indexing
-│   ├── cache.py          SQLite cache — all API calls cached on first fetch
-│   ├── embedder.py       sentence-transformers (local) + TF-IDF fallback
-│   ├── llm.py            Groq client with model routing + rate-limit retry
-│   └── apis.py           Semantic Scholar + Unpaywall + arXiv + PDF download
-│
-├── phase_a/
-│   ├── graph.py          BFS reference graph + layer assignment (trendscore)
-│   ├── gap_detection.py  3-run self-consistency + grounding check
-│   └── candidates.py     α/β/γ scoring + Leiden clustering + rationale
-│
-├── phase_b/
-│   ├── retrieval.py      Dense + BM25 + RRF + cross-encoder reranking
-│   ├── ordering.py       Deterministic layer sort + LLM dependency refinement
-│   └── generation.py     Writing Agent + Eval Agent + multi-hop + doc assembly
-│
-├── eval/
-│   └── evaluate.py       RAGAS metrics, faithfulness gate, citation grounding
-│
-├── pipeline.py           Phase A + Phase B orchestration
-├── app.py                Streamlit UI (4 views)
-└── requirements.txt
-```
-
----
-
 ## Architecture
 
 ### Model Routing
@@ -109,7 +73,7 @@ uv venv && source .venv/bin/activate && uv pip install -r requirements.txt
 
 ```bash
 # base paper: https://arxiv.org/pdf/2405.20139
-python test_phase_a.py --paper 2405.20139 --pdf path/to/2405.20139v1.pdf --depth 1
+python test_phase_a.py --paper 2405.20139 --pdf path/to/2405.20139v1.pdf --depth 1 --export ./output/
 
 # # Minimal
 # python test_phase_a.py --paper 2405.20139
@@ -124,7 +88,7 @@ python test_phase_a.py --paper 2405.20139 --pdf path/to/2405.20139v1.pdf --depth
 # # Export everything
 # python test_phase_a.py --paper 2405.20139 --pdf paper.pdf --export ./results/
         
-python test_phase_b.py --paper 2405.20139 --pdf /home/sharukh/Downloads/temp/2405.20139v1.pdf --depth 1
+python test_phase_b.py --paper 2405.20139 --pdf /home/sharukh/Downloads/temp/2405.20139v1.pdf --depth 1 --export ./output/
 
 # more examples:
 # Full pipeline (Phase A → Phase B → document)
@@ -143,7 +107,7 @@ python test_phase_b.py --paper 2405.20139 --pdf /home/sharukh/Downloads/temp/240
 # python test_phase_b.py --paper 2405.20139 --only-gaps "KGQA" "GNN" "retrieval"
 
 # Custom output directory
-python test_phase_b.py --paper 2405.20139 --pdf p.pdf --out ./results/
+# python test_phase_b.py --paper 2405.20139 --pdf p.pdf --out ./results/
 ```
 
 For better PDF parsing (recommended — handles academic two-column layouts):
