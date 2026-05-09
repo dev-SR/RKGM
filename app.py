@@ -13,6 +13,9 @@ import os
 import sys
 import json
 import tempfile
+import warnings
+
+warnings.filterwarnings("ignore")
 
 
 # ── Auto-relaunch guard ────────────────────────────────────────────────────
@@ -163,15 +166,15 @@ def render_input():
         depth_input = st.selectbox(
             "Reference Depth",
             options=[0, 1, 2, 3],
-            index=0,
+            index=1,
             format_func=lambda x: f"{x} - "
             + [
                 "Gap detection only",
-                "Direct references (fast)",
-                "Refs-of-refs (medium)",
-                "Full graph (slow)",
+                "Direct references (speed:fast)",
+                "Refs-of-refs (speed:medium)",
+                "Full graph (speed:slow)",
             ][x],
-            help="How deep to search the reference graph. 1 is recommended.",
+            help="How deep to search the reference graph.",
         )
 
         st.markdown("**Optional: specify concepts you want explained**")
@@ -191,7 +194,9 @@ def render_input():
         for ex_id, ex_label in examples:
             if st.button(f"📄 {ex_label}", use_container_width=True, key=f"ex_{ex_id}"):
                 if not os.environ.get("GROQ_API_KEY"):
-                    st.warning("⚠️ Please set your Groq API Key in the sidebar or .env file before proceeding.")
+                    st.warning(
+                        "⚠️ Please set your Groq API Key in the sidebar or .env file before proceeding."
+                    )
                 else:
                     user_gaps = [
                         line.strip()
@@ -212,7 +217,9 @@ def render_input():
         disabled=not paper_input.strip(),
     ):
         if not os.environ.get("GROQ_API_KEY"):
-            st.warning("⚠️ Please set your Groq API Key in the sidebar or .env file before proceeding.")
+            st.warning(
+                "⚠️ Please set your Groq API Key in the sidebar or .env file before proceeding."
+            )
         else:
             user_gaps = [
                 line.strip() for line in custom_gap_input.splitlines() if line.strip()
@@ -220,7 +227,7 @@ def render_input():
             st.session_state.custom_gaps = user_gaps
             st.session_state.depth = depth_input
             st.session_state._paper_input = paper_input.strip()
-            
+
             if base_pdf_upload:
                 tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
                 tmp.write(base_pdf_upload.read())
@@ -228,7 +235,7 @@ def render_input():
                 st.session_state.ba_pdf_path = tmp.name
             else:
                 st.session_state.ba_pdf_path = None
-                
+
             st.session_state.phase = "phase_a"
             st.rerun()
 
@@ -451,7 +458,8 @@ def render_pdf_collect():
     # Available section
     if available:
         with st.expander(
-            f"✅ Auto-available ({len(available)} papers) - Click to override with custom PDF", expanded=False
+            f"✅ Auto-available ({len(available)} papers) - Click to override with custom PDF",
+            expanded=False,
         ):
             for c in available:
                 col_info, col_upload = st.columns([2, 1])
