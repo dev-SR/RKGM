@@ -7,9 +7,9 @@ No UI required. Outputs a Markdown learning document.
 
 Usage:
   # Minimal — paper ID only, abstract-level gap detection
-  python run.py --paper 2405.20139
+  python run.py --paper 2405.20139 --depth 0 --out ./output/ 
 
-  # With PDF for richer gap detection (strongly recommended)
+  # With PDF for richer gap detection
   python run.py --paper 2405.20139 --pdf /path/to/gnn_rag.pdf
 
   # Control depth and add custom gaps

@@ -14,17 +14,26 @@ from core.config import (
     UNPAYWALL_EMAIL,
 )
 from utils.cache import get_cached, set_cached
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 _HEADERS = {"User-Agent": "KGMS-Research/1.0"}
+s2_key = os.environ.get("S2_API_KEY")
+if s2_key:
+    _HEADERS["x-api-key"] = s2_key
 
 
-def _s2_get(url: str, params: dict = None, retries: int = 3) -> dict | None:
+def _s2_get(url: str, params: dict = None, retries: int = 5) -> dict | None:
     """Rate-limit-aware GET for Semantic Scholar (100 req/5min unauthenticated)."""
     for attempt in range(retries):
         try:
             r = requests.get(url, params=params, headers=_HEADERS, timeout=15)
             if r.status_code == 429:
-                time.sleep(10 * (attempt + 1))
+                wait_time = 300 if attempt > 0 else 60
+                print(f"[API] Rate limit (429) hit. Waiting {wait_time}s to respect quota...")
+                time.sleep(wait_time)
                 continue
             r.raise_for_status()
             return r.json()
@@ -33,7 +42,7 @@ def _s2_get(url: str, params: dict = None, retries: int = 3) -> dict | None:
                 print(f"[API] S2 error for {url}: {e}")
                 return None
             time.sleep(2)
-    return None
+    raise Exception(f"Semantic Scholar API rate limit exceeded (429) after multiple retries for {url}. Please wait 5 minutes or set S2_API_KEY in .env.")
 
 
 # ── Paper fetch ────────────────────────────────────────────────────────────

@@ -39,6 +39,9 @@ if not _is_streamlit_context():
 # ── End guard ──────────────────────────────────────────────────────────────
 
 import streamlit as st
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ── Page config (must be first Streamlit call) ─────────────────────────────
 st.set_page_config(
@@ -64,6 +67,7 @@ def _init_state():
         "pipeline_state": None,
         "disabled_gaps": set(),
         "custom_gaps": [],
+        "depth": 0,
         "uploaded_pdfs": {},  # paper_id -> tmp file path
         "log": [],
     }
@@ -150,6 +154,26 @@ def render_input():
             help="Examples: 2404.16130 | 10.1109/ICCIT57492.2022.10103286",
         )
 
+        base_pdf_upload = st.file_uploader(
+            "Upload Base Paper PDF (Optional)",
+            type=["pdf"],
+            help="Providing the PDF improves gap detection compared to using just the abstract.",
+        )
+
+        depth_input = st.selectbox(
+            "Reference Depth",
+            options=[0, 1, 2, 3],
+            index=0,
+            format_func=lambda x: f"{x} - "
+            + [
+                "Gap detection only",
+                "Direct references (fast)",
+                "Refs-of-refs (medium)",
+                "Full graph (slow)",
+            ][x],
+            help="How deep to search the reference graph. 1 is recommended.",
+        )
+
         st.markdown("**Optional: specify concepts you want explained**")
         custom_gap_input = st.text_area(
             "Custom concepts (one per line)",
@@ -166,13 +190,20 @@ def render_input():
         ]
         for ex_id, ex_label in examples:
             if st.button(f"📄 {ex_label}", use_container_width=True, key=f"ex_{ex_id}"):
-                user_gaps = [
-                    line.strip() for line in custom_gap_input.splitlines() if line.strip()
-                ]
-                st.session_state.custom_gaps = user_gaps
-                st.session_state._paper_input = ex_id
-                st.session_state.phase = "phase_a"
-                st.rerun()
+                if not os.environ.get("GROQ_API_KEY"):
+                    st.warning("⚠️ Please set your Groq API Key in the sidebar or .env file before proceeding.")
+                else:
+                    user_gaps = [
+                        line.strip()
+                        for line in custom_gap_input.splitlines()
+                        if line.strip()
+                    ]
+                    st.session_state.custom_gaps = user_gaps
+                    st.session_state.depth = depth_input
+                    st.session_state._paper_input = ex_id
+                    st.session_state.ba_pdf_path = None
+                    st.session_state.phase = "phase_a"
+                    st.rerun()
 
     if st.button(
         "🔍 Analyse Paper",
@@ -180,13 +211,26 @@ def render_input():
         use_container_width=True,
         disabled=not paper_input.strip(),
     ):
-        user_gaps = [
-            line.strip() for line in custom_gap_input.splitlines() if line.strip()
-        ]
-        st.session_state.custom_gaps = user_gaps
-        st.session_state._paper_input = paper_input.strip()
-        st.session_state.phase = "phase_a"
-        st.rerun()
+        if not os.environ.get("GROQ_API_KEY"):
+            st.warning("⚠️ Please set your Groq API Key in the sidebar or .env file before proceeding.")
+        else:
+            user_gaps = [
+                line.strip() for line in custom_gap_input.splitlines() if line.strip()
+            ]
+            st.session_state.custom_gaps = user_gaps
+            st.session_state.depth = depth_input
+            st.session_state._paper_input = paper_input.strip()
+            
+            if base_pdf_upload:
+                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+                tmp.write(base_pdf_upload.read())
+                tmp.close()
+                st.session_state.ba_pdf_path = tmp.name
+            else:
+                st.session_state.ba_pdf_path = None
+                
+            st.session_state.phase = "phase_a"
+            st.rerun()
 
 
 # ── Phase: Phase A ─────────────────────────────────────────────────────────
@@ -196,6 +240,8 @@ def render_phase_a():
     st.title("🔍 Gap Analysis")
     paper_input = st.session_state.get("_paper_input", "")
     user_gaps = st.session_state.get("custom_gaps", [])
+    depth = st.session_state.get("depth", 1)
+    ba_pdf_path = st.session_state.get("ba_pdf_path", None)
 
     if not paper_input:
         st.error("No paper specified. Go back and enter a paper ID.")
@@ -204,11 +250,13 @@ def render_phase_a():
     # Run Phase A if not yet done
     if st.session_state.pipeline_state is None:
         progress_area = st.empty()
-        log_container = st.container()
+        log_expander = st.expander("Terminal Logs", expanded=True)
+        log_placeholder = log_expander.empty()
 
         def cb(msg):
             _log(msg)
             progress_area.info(f"⏳ {msg}")
+            log_placeholder.code("\n".join(st.session_state.log[-20:]), language="text")
 
         with st.spinner("Running Phase A analysis…"):
             from pipeline import run_phase_a
@@ -217,6 +265,8 @@ def render_phase_a():
                 state = run_phase_a(
                     paper_input=paper_input,
                     user_gaps=user_gaps,
+                    reference_depth=depth,
+                    pdf_path=ba_pdf_path,
                     progress_callback=cb,
                 )
                 st.session_state.pipeline_state = state
@@ -401,15 +451,30 @@ def render_pdf_collect():
     # Available section
     if available:
         with st.expander(
-            f"✅ Auto-available ({len(available)} papers)", expanded=False
+            f"✅ Auto-available ({len(available)} papers) - Click to override with custom PDF", expanded=False
         ):
             for c in available:
-                st.markdown(
-                    f"- **{c.paper.title[:70]}** ({c.paper.year}) "
-                    f"— [{c.paper.layer.value}]"
-                )
-                if c.paper.pdf_url:
-                    st.caption(f"  URL: `{c.paper.pdf_url[:80]}…`")
+                col_info, col_upload = st.columns([2, 1])
+                with col_info:
+                    st.markdown(
+                        f"**{c.paper.title[:70]}** ({c.paper.year}) "
+                        f"— [{c.paper.layer.value}]"
+                    )
+                    if c.paper.pdf_url:
+                        st.caption(f"  URL: `{c.paper.pdf_url[:80]}…`")
+                with col_upload:
+                    uploaded = st.file_uploader(
+                        "Override PDF",
+                        type=["pdf"],
+                        key=f"upload_{c.paper.paper_id}",
+                        label_visibility="collapsed",
+                    )
+                    if uploaded:
+                        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+                        tmp.write(uploaded.read())
+                        tmp.close()
+                        st.session_state.uploaded_pdfs[c.paper.paper_id] = tmp.name
+                        st.success("Overridden ✓")
 
     # Manual upload section
     if unavailable:
@@ -466,14 +531,13 @@ def render_phase_b():
     # Run Phase B if not done
     if not state.final_document:
         progress_area = st.empty()
-        log_expander = st.expander("Progress log", expanded=False)
+        log_expander = st.expander("Terminal Logs", expanded=True)
+        log_placeholder = log_expander.empty()
 
         def cb(msg):
             _log(msg)
             progress_area.info(f"⏳ {msg}")
-            with log_expander:
-                for entry in st.session_state.log[-10:]:
-                    st.caption(entry)
+            log_placeholder.code("\n".join(st.session_state.log[-20:]), language="text")
 
         disabled = st.session_state.disabled_gaps
         uploaded = st.session_state.uploaded_pdfs

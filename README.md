@@ -72,42 +72,33 @@ uv venv && source .venv/bin/activate && uv pip install -r requirements.txt
 ### 3. Running Tests
 
 ```bash
-# base paper: https://arxiv.org/pdf/2405.20139
-python test_phase_a.py --paper 2405.20139 --pdf path/to/2405.20139v1.pdf --depth 1 --export ./output/
+  # Minimal — paper ID only, abstract-level gap detection
+  python run.py --paper 2405.20139 --depth 0 --out ./output/  # for paper: https://arxiv.org/pdf/2405.20139
 
-# # Minimal
-# python test_phase_a.py --paper 2405.20139
+  # # With PDF for richer gap detection
+  # python run.py --paper 2405.20139 --pdf /path/to/gnn_rag.pdf
 
-# # Recommended — supply the PDF
-# python test_phase_a.py --paper 2405.20139 --pdf gnn_rag.pdf
+  # # Control depth and add custom gaps
+  # python run.py --paper 2405.20139 --pdf paper.pdf --depth 2 \
+  #               --gaps "knowledge graph" "SPARQL"
 
-# # With depth control and extra gaps
-# python test_phase_a.py --paper 2405.20139 --pdf paper.pdf --depth 2 \
-#   --gaps "SPARQL" "KG embedding" --show-papers 15
+  # # Skip Phase B (Phase A only — gaps + candidate list)
+  # python run.py --paper 2405.20139 --pdf paper.pdf --phase-a-only
 
-# # Export everything
-# python test_phase_a.py --paper 2405.20139 --pdf paper.pdf --export ./results/
-        
-python test_phase_b.py --paper 2405.20139 --pdf /home/sharukh/Downloads/temp/2405.20139v1.pdf --depth 1 --export ./output/
+  # # Custom output directory
+  # python run.py --paper 2405.20139 --pdf paper.pdf --out ./results/
 
-# more examples:
-# Full pipeline (Phase A → Phase B → document)
-# python test_phase_b.py --paper 2405.20139 --pdf gnn_rag.pdf
+  # # Full verbose logging
+  # python run.py --paper 2405.20139 --pdf paper.pdf --verbose
 
-# # Phase A already ran — re-use cached state
-# python test_phase_b.py --paper 2405.20139
+  # # Clear API cache (force fresh Semantic Scholar calls)
+  # python run.py --paper 2405.20139 --clear-cache
 
-# # Force Phase A to re-run
-# python test_phase_b.py --paper 2405.20139 --pdf p.pdf --rerun-a
-
-# # Load an explicit state file
-# python test_phase_b.py --state ./output/phase_a_state_2405.20139.json
-
-# # Only generate explanations for specific gaps
-# python test_phase_b.py --paper 2405.20139 --only-gaps "KGQA" "GNN" "retrieval"
-
-# Custom output directory
-# python test_phase_b.py --paper 2405.20139 --pdf p.pdf --out ./results/
+# Outputs written to --out directory (default: current directory):
+#   learning_roadmap_<paper_id>.md   — the learning document
+#   phase_a_state_<paper_id>.json    — saved Phase A state (re-usable)
+#   candidates_<paper_id>.bib        — BibTeX for all candidate papers
+#   candidates_<paper_id>.csv        — CSV with PDF availability status
 ```
 
 For better PDF parsing (recommended — handles academic two-column layouts):

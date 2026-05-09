@@ -57,7 +57,7 @@ def build_reference_graph(
         visited.add(pid)
 
         if progress_callback:
-            progress_callback(f"Fetching level {level}: {pid[:12]}…")
+            progress_callback(f"Fetching paper {pid[:12]}... at level {level}")
 
         raw = fetch_paper(pid)
         if not raw or not raw.get("abstract"):

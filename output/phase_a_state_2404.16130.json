@@ -1,0 +1,102 @@
+{
+  "ba_paper": {
+    "paper_id": "c1799bf28d1ae93e1631be5b59196ee1e568f538",
+    "title": "From Local to Global: A Graph RAG Approach to Query-Focused Summarization",
+    "abstract": "The use of retrieval-augmented generation (RAG) to retrieve relevant information from an external knowledge source enables large language models (LLMs) to answer questions over private and/or previously unseen document collections. However, RAG fails on global questions directed at an entire text corpus, such as\"What are the main themes in the dataset?\", since this is inherently a query-focused summarization (QFS) task, rather than an explicit retrieval task. Prior QFS methods, meanwhile, do not scale to the quantities of text indexed by typical RAG systems. To combine the strengths of these contrasting methods, we propose GraphRAG, a graph-based approach to question answering over private text corpora that scales with both the generality of user questions and the quantity of source text. Our approach uses an LLM to build a graph index in two stages: first, to derive an entity knowledge graph from the source documents, then to pregenerate community summaries for all groups of closely related entities. Given a question, each community summary is used to generate a partial response, before all partial responses are again summarized in a final response to the user. For a class of global sensemaking questions over datasets in the 1 million token range, we show that GraphRAG leads to substantial improvements over a conventional RAG baseline for both the comprehensiveness and diversity of generated answers.",
+    "year": 2024,
+    "citation_count": 1383,
+    "arxiv_id": "2404.16130",
+    "doi": null,
+    "pdf_url": "",
+    "layer": "foundation",
+    "trendscore": 691.5
+  },
+  "ba_text_words": 13802,
+  "gaps": [
+    {
+      "gap_id": "gap_000",
+      "concept": "RAG",
+      "gap_type": "terminology",
+      "difficulty": "intermediate",
+      "domain": "natural language processing",
+      "why_needed": "The paper assumes the reader is familiar with RAG and its applications in large language models.",
+      "layer_hint": "foundation",
+      "retrieval_query": "retrieval-augmented generation language models",
+      "source_passage": "Retrieval augmented generation (RAG) (Lewis et al., 2020) is an established approach to using LLMs to answer queries based on data that is too large to contain in a language model’s context window",
+      "confidence": 0.9
+    },
+    {
+      "gap_id": "gap_002",
+      "concept": "Query-Focused Summarization",
+      "gap_type": "terminology",
+      "difficulty": "intermediate",
+      "domain": "natural language processing",
+      "why_needed": "The paper discusses the limitations of RAG in handling query-focused summarization tasks.",
+      "layer_hint": "development",
+      "retrieval_query": "query-focused summarization definition",
+      "source_passage": "since this is inherently a query-focused summarization (QFS) task, rather than an explicit retrieval task",
+      "confidence": 0.8
+    },
+    {
+      "gap_id": "gap_005",
+      "concept": "LLM",
+      "gap_type": "terminology",
+      "difficulty": "beginner",
+      "domain": "natural language processing",
+      "why_needed": "The paper uses LLMs as a fundamental component of the proposed approach.",
+      "layer_hint": "foundation",
+      "retrieval_query": "large language models definition",
+      "source_passage": "large language models (LLMs) to answer questions over private and/or previously unseen document collections",
+      "confidence": 0.8
+    },
+    {
+      "gap_id": "gap_001",
+      "concept": "Knowledge Graphs",
+      "gap_type": "terminology",
+      "difficulty": "intermediate",
+      "domain": "graph theory",
+      "why_needed": "The paper relies on knowledge graphs as a key component of the proposed GraphRAG approach.",
+      "layer_hint": "foundation",
+      "retrieval_query": "knowledge graphs definition",
+      "source_passage": "GraphRAG first uses an LLM to construct a knowledge graph, where nodes correspond to key entities in the corpus and edges represent relationships between those entities",
+      "confidence": 0.675
+    },
+    {
+      "gap_id": "gap_006",
+      "concept": "Lewis et al. (2020)",
+      "gap_type": "historical",
+      "difficulty": "intermediate",
+      "domain": "natural language processing",
+      "why_needed": "The paper builds upon the RAG approach proposed by Lewis et al. (2020).",
+      "layer_hint": "foundation",
+      "retrieval_query": "Lewis et al 2020 retrieval augmented generation",
+      "source_passage": "Retrieval augmented generation (RAG) (Lewis et al., 2020) is an established approach to using LLMs to answer queries based on data that is too large to contain in a language model’s context window",
+      "confidence": 0.675
+    },
+    {
+      "gap_id": "gap_003",
+      "concept": "Graph-Based Community Detection",
+      "gap_type": "methodology",
+      "difficulty": "advanced",
+      "domain": "graph theory",
+      "why_needed": "The paper uses graph-based community detection to create a thematic partitioning of the data, but does not explain the methodology behind it.",
+      "layer_hint": "development",
+      "retrieval_query": "graph-based community detection algorithms",
+      "source_passage": "GraphRAG contrasts with these approaches by generating a graph index from the source data, then applying graph-based community detection to create a thematic partitioning of the data",
+      "confidence": 0.525
+    },
+    {
+      "gap_id": "gap_004",
+      "concept": "HotPotQA Benchmark",
+      "gap_type": "benchmark",
+      "difficulty": "intermediate",
+      "domain": "natural language processing",
+      "why_needed": "The paper mentions HotPotQA as a benchmark dataset for open-domain question answering, but does not provide context about the dataset.",
+      "layer_hint": "development",
+      "retrieval_query": "HotPotQA benchmark dataset",
+      "source_passage": "Many benchmark datasets for open-domain question answering exist, including HotPotQA (Yang et al., 2018)",
+      "confidence": 0.45
+    }
+  ],
+  "candidates": []
+}

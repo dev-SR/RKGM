@@ -53,12 +53,16 @@ def run_phase_a(
     cb(f"Looking up paper: {paper_id}…")
 
     # ── Fetch base article metadata ────────────────────────────────────────
-    raw = fetch_paper(paper_id)
-    if not raw:
-        state.errors.append(
-            f"Could not fetch paper '{paper_id}' from Semantic Scholar. "
-            f"Check the ID format and your internet connection."
-        )
+    try:
+        raw = fetch_paper(paper_id)
+        if not raw:
+            state.errors.append(
+                f"Could not fetch paper '{paper_id}' from Semantic Scholar. "
+                f"Check the ID format and your internet connection."
+            )
+            return state
+    except Exception as e:
+        state.errors.append(str(e))
         return state
 
     ext = raw.get("externalIds") or {}
