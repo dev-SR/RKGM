@@ -49,6 +49,8 @@ load_dotenv()
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from utils.llm import RateLimitError
+
 
 # ── Colour helpers ─────────────────────────────────────────────────────────
 class C:
@@ -231,6 +233,14 @@ def run(args):
             pdf_path=args.pdf,
             reference_depth=args.depth,
         )
+    except RateLimitError as e:
+        if not args.verbose:
+            print()
+        err(f"Groq daily token limit reached for model '{e.model}'.")
+        if e.wait_time:
+            warn(f"Please try again in {e.wait_time}.")
+        info("Upgrade at: https://console.groq.com/settings/billing")
+        sys.exit(1)
     except Exception as e:
         if not args.verbose:
             print()
@@ -339,6 +349,14 @@ def run(args):
             auto_fetch=True,
             progress_callback=cb,
         )
+    except RateLimitError as e:
+        if not args.verbose:
+            print()
+        err(f"Groq daily token limit reached for model '{e.model}'.")
+        if e.wait_time:
+            warn(f"Please try again in {e.wait_time}.")
+        info("Upgrade at: https://console.groq.com/settings/billing")
+        sys.exit(1)
     except Exception as e:
         if not args.verbose:
             print()

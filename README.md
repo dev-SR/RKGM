@@ -4,11 +4,15 @@ Automatically identifies what you need to know before reading a research paper, 
 
 **Based on:** Rahman et al. (2022), *An Article Recommendation Technique from a Multi-Layer Reference Article Graph for Facilitating Chronological Learning*, IEEE ICCIT. [DOI: 10.1109/ICCIT57492.2022.10103286](https://ieeexplore.ieee.org/abstract/document/10103286)
 
+<p align="center">
+<img src="img/screencapture-localhost-8501-2026-05-10-16_19_36.png" alt="screencapture-localhost-8501-2026-05-10-16_19_36.png" width="800px"/>
+</p>
+
 ---
 
 ## What It Does
 
-1. **Phase A** — Give it any paper (arXiv ID, DOI, Semantic Scholar ID or PDF file). It fetches the paper's 3-level reference graph, detects knowledge gaps using structured LLM prompting, and returns a ranked list of candidate papers per gap with rationale.
+1. **Phase A** — Give it any paper (arXiv ID, DOI, Semantic Scholar ID or PDF). It fetches the paper's 3-level reference graph, detects knowledge gaps using structured LLM prompting with self-consistency, and returns a ranked list of candidate papers per gap with rationale.
 
 2. **Human checkpoint** — Review the gap list, toggle off concepts you already know, add your own. The system auto-fetches open-access PDFs via Unpaywall and arXiv.
 
@@ -18,13 +22,13 @@ Automatically identifies what you need to know before reading a research paper, 
 
 ## Architecture
 
-### Model Routing
+### LLM Provider Support
 
-| Task                                                                         | Model                         | Why                                               |
-| ---------------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------- |
-| Gap detection (×3), grounding checks, eval agent, rationale, cluster summary | Groq Llama 3.1 8B             | Structured extraction — 8B is reliable and fast   |
-| Writing Agent, ordering, sub-gap detection                                   | Groq Llama 3.3 70B            | Multi-paragraph generation needs the larger model |
-| Embeddings, reranking                                                        | Local (sentence-transformers) | Zero API cost, no rate limits                     |
+| Provider             | Models                                       | Notes                         |
+| -------------------- | -------------------------------------------- | ----------------------------- |
+| **Groq** *(default)* | Llama 3.3 70B (heavy) · Llama 3.1 8B (light) | Free tier, fast — recommended |
+| **OpenAI**           | GPT-4o (heavy) · GPT-4o-mini (light)         | Higher quality, pay-per-use   |
+| **Auto**             | Groq if `GROQ_API_KEY` set, else OpenAI      | Automatic fallback            |
 
 ### Retrieval Pipeline
 
@@ -44,90 +48,130 @@ Gap query
 
 - Runs 3× at temperatures [0.1, 0.35, 0.6]
 - Keeps concepts appearing in ≥ 2/3 runs (self-consistency)
-- Validates each gap traces back to a specific passage in the BA
+- Validates each gap traces back to a specific passage in the paper
 
 ---
 
-## Setup & Usage
+## Quick Start
 
-### 1. Get a Groq API key
-
-Free at [console.groq.com](https://console.groq.com). The free tier (14,400 tokens/min on Llama 3.3 70B) is sufficient for this project.
-
-Add the key to the `.env` file:
-
-```bash
-GROQ_API_KEY="your_key_here"
-```
-
-### 2. Install dependencies
+### 1. Clone & install
 
 ```bash
 git clone https://github.com/sharukhn32/Research-Knowledge-Gaps.git
 cd Research-Knowledge-Gaps
+
+# Using uv (recommended)
 uv venv && source .venv/bin/activate && uv pip install -r requirements.txt
-# pip install -r requirements.txt
+
+# Or plain pip
+pip install -r requirements.txt
 ```
 
-### 3. Running Tests
+### 2. Configure API keys
+
+Copy `.env.example` to `.env` and fill in your key(s):
 
 ```bash
-  # Minimal — paper ID only, abstract-level gap detection
-  python run.py --paper 2405.20139 --depth 0 --out ./output/  # for paper: https://arxiv.org/pdf/2405.20139
-
-  # # With PDF for richer gap detection
-  # python run.py --paper 2405.20139 --pdf /path/to/gnn_rag.pdf
-
-  # # Control depth and add custom gaps
-  # python run.py --paper 2405.20139 --pdf paper.pdf --depth 2 \
-  #               --gaps "knowledge graph" "SPARQL"
-
-  # # Skip Phase B (Phase A only — gaps + candidate list)
-  # python run.py --paper 2405.20139 --pdf paper.pdf --phase-a-only
-
-  # # Custom output directory
-  # python run.py --paper 2405.20139 --pdf paper.pdf --out ./results/
-
-  # # Full verbose logging
-  # python run.py --paper 2405.20139 --pdf paper.pdf --verbose
-
-  # # Clear API cache (force fresh Semantic Scholar calls)
-  # python run.py --paper 2405.20139 --clear-cache
-
-# Outputs written to --out directory (default: current directory):
-#   learning_roadmap_<paper_id>.md   — the learning document
-#   phase_a_state_<paper_id>.json    — saved Phase A state (re-usable)
-#   candidates_<paper_id>.bib        — BibTeX for all candidate papers
-#   candidates_<paper_id>.csv        — CSV with PDF availability status
+cp .env.example .env
 ```
 
-For better PDF parsing (recommended — handles academic two-column layouts):
+```bash
+# Use Groq (free) — recommended
+GROQ_API_KEY="gsk_..."
+
+# Or OpenAI
+OPENAI_API_KEY="sk-..."
+
+# Provider: "groq" | "openai" | "auto" (default: auto)
+LLM_PROVIDER="auto"
+```
+
+Get a free Groq key at [console.groq.com](https://console.groq.com).  
+Get an OpenAI key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys).
+
+### 3. Run
+
+**Web UI (recommended):**
+
+```bash
+python app.py
+```
+
+Opens the Streamlit interface automatically in your browser. The provider and API keys can also be set interactively from the sidebar — no `.env` required.
+
+**CLI:**
+
+```bash
+# Minimal — paper ID only, abstract-level gap detection
+python run.py --paper 2405.20139 --depth 0 --out ./output/
+
+# With PDF for richer gap detection
+python run.py --paper 2405.20139 --pdf /path/to/paper.pdf
+
+# Control depth and add custom gaps
+python run.py --paper 2405.20139 --pdf paper.pdf --depth 2 \
+              --gaps "knowledge graph" "SPARQL"
+
+# Phase A only (gaps + candidate list, skip generation)
+python run.py --paper 2405.20139 --pdf paper.pdf --phase-a-only
+
+# Custom output directory
+python run.py --paper 2405.20139 --pdf paper.pdf --out ./results/
+
+# Verbose logging
+python run.py --paper 2405.20139 --pdf paper.pdf --verbose
+
+# Clear API cache (force fresh Semantic Scholar calls)
+python run.py --paper 2405.20139 --clear-cache
+```
+
+CLI outputs written to `--out` directory (default: current directory):
+
+| File                       | Contents                        |
+| -------------------------- | ------------------------------- |
+| `learning_roadmap_<id>.md` | The generated learning document |
+| `phase_a_state_<id>.json`  | Saved Phase A state (re-usable) |
+| `candidates_<id>.bib`      | BibTeX for all candidate papers |
+| `candidates_<id>.csv`      | PDF availability status         |
+
+---
+
+## Optional: Better PDF Parsing
+
+For academic two-column layouts, install `marker-pdf`:
 
 ```bash
 pip install marker-pdf
-# Note: downloads ~1.5 GB of models on first use
+# Downloads ~1.5 GB of models on first use
 ```
+
+Falls back to PyMuPDF automatically if marker-pdf is unavailable.
 
 ---
 
 ## Configuration
 
-All tunable parameters are in `core/config.py`:
+All tunable parameters live in `core/config.py`. The most useful ones:
 
 ```python
+# ── Reference graph ────────────────────────────────────────────────────────
 FOUNDATION_TOP_K     = 10     # how many papers qualify as Foundation layer
 FRONTIER_YEAR_CUTOFF = 2022   # papers from this year onwards → Frontier
 
-SELF_CONSISTENCY_MIN = 2      # gap must appear in ≥ N/3 runs
-CONFIDENCE_THRESHOLD = 0.5    # discard ungrounded gaps below this
+# ── Gap detection ──────────────────────────────────────────────────────────
+SELF_CONSISTENCY_RUNS = 3     # number of LLM runs per gap detection pass
+SELF_CONSISTENCY_MIN  = 2     # gap must appear in ≥ N runs to be kept
+CONFIDENCE_THRESHOLD  = 0.5   # discard ungrounded gaps below this
 
-ALPHA = 0.5    # candidate scoring: semantic similarity weight
-BETA  = 0.3    # candidate scoring: trendscore weight  
-GAMMA = 0.2    # candidate scoring: layer-match weight
+# ── Candidate scoring ──────────────────────────────────────────────────────
+ALPHA = 0.5    # semantic similarity weight
+BETA  = 0.3    # trendscore weight
+GAMMA = 0.2    # layer-match weight
 
-MAX_MULTIHOP_DEPTH  = 2       # max recursion depth for sub-gap detection
-MAX_EVAL_LOOPS      = 2       # Writing↔Eval agent iterations per gap
-FAITHFULNESS_GATE   = 0.70    # RAGAS faithfulness minimum before retry
+# ── Generation ────────────────────────────────────────────────────────────
+MAX_MULTIHOP_DEPTH = 2        # max recursion depth for sub-gap detection
+MAX_EVAL_LOOPS     = 2        # Writing ↔ Eval agent iterations per gap
+FAITHFULNESS_GATE  = 0.70     # RAGAS faithfulness minimum before retry
 ```
 
 ---

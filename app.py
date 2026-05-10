@@ -59,6 +59,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from core.models import PipelineState
 from utils.cache import cache_stats, clear_cache
+from utils.llm import RateLimitError
 
 
 # ── Session state helpers ──────────────────────────────────────────────────
@@ -86,6 +87,39 @@ def _log(msg: str):
     st.session_state.log.append(msg)
 
 
+def _has_api_key() -> bool:
+    """Return True if at least one LLM API key is available for the active provider."""
+    provider = os.environ.get("LLM_PROVIDER", "auto").lower()
+    if provider == "groq":
+        return bool(os.environ.get("GROQ_API_KEY"))
+    if provider == "openai":
+        return bool(os.environ.get("OPENAI_API_KEY"))
+    # auto: either key is fine
+    return bool(os.environ.get("GROQ_API_KEY") or os.environ.get("OPENAI_API_KEY"))
+
+
+def _rate_limit_banner(e) -> str:
+    """Build the st.error message for a RateLimitError."""
+    provider = getattr(e, "provider", "") or "groq"
+    billing_urls = {
+        "groq": "https://console.groq.com/settings/billing",
+        "openai": "https://platform.openai.com/settings/organization/billing",
+    }
+    billing_url = billing_urls.get(provider, billing_urls["groq"])
+    billing_label = f"{provider.capitalize()} billing"
+    provider_label = provider.capitalize()
+    return (
+        f"🚫 **{provider_label} Rate Limit Reached**\n\n"
+        f"The quota for **{e.model}** has been exhausted.\n\n"
+        + (
+            f"⏳ Please try again in **{e.wait_time}**."
+            if e.wait_time
+            else "Please check your quota / billing."
+        )
+        + f"\n\nUpgrade at [{billing_label}]({billing_url})."
+    )
+
+
 # ── Sidebar ────────────────────────────────────────────────────────────────
 
 
@@ -111,15 +145,42 @@ def render_sidebar():
 
         st.divider()
 
-        # API key input
-        api_key = st.text_input(
-            "Groq API Key",
-            value=os.environ.get("GROQ_API_KEY", ""),
-            type="password",
-            help="Free key at https://console.groq.com",
+        # ── LLM Provider ───────────────────────────────────────────────────
+        provider_choice = st.selectbox(
+            "LLM Provider",
+            options=["auto", "groq", "openai"],
+            index=["auto", "groq", "openai"].index(
+                os.environ.get("LLM_PROVIDER", "auto").lower()
+            ),
+            format_func=lambda x: {
+                "auto": "🤖 Auto (Groq → OpenAI)",
+                "groq": "⚡ Groq (free, fast)",
+                "openai": "🟢 OpenAI (GPT-4o)",
+            }[x],
+            help="auto = use Groq if GROQ_API_KEY is set, else OpenAI",
         )
-        if api_key:
-            os.environ["GROQ_API_KEY"] = api_key
+        os.environ["LLM_PROVIDER"] = provider_choice
+
+        # Show relevant API key inputs
+        if provider_choice in ("groq", "auto"):
+            groq_key = st.text_input(
+                "Groq API Key",
+                value=os.environ.get("GROQ_API_KEY", ""),
+                type="password",
+                help="Free key at https://console.groq.com",
+            )
+            if groq_key:
+                os.environ["GROQ_API_KEY"] = groq_key
+
+        if provider_choice in ("openai", "auto"):
+            oai_key = st.text_input(
+                "OpenAI API Key",
+                value=os.environ.get("OPENAI_API_KEY", ""),
+                type="password",
+                help="Key at https://platform.openai.com/api-keys",
+            )
+            if oai_key:
+                os.environ["OPENAI_API_KEY"] = oai_key
 
         # Cache stats
         stats = cache_stats()
@@ -193,9 +254,9 @@ def render_input():
         ]
         for ex_id, ex_label in examples:
             if st.button(f"📄 {ex_label}", use_container_width=True, key=f"ex_{ex_id}"):
-                if not os.environ.get("GROQ_API_KEY"):
+                if not _has_api_key():
                     st.warning(
-                        "⚠️ Please set your Groq API Key in the sidebar or .env file before proceeding."
+                        "⚠️ Please set an API key (Groq or OpenAI) in the sidebar or .env file before proceeding."
                     )
                 else:
                     user_gaps = [
@@ -216,9 +277,9 @@ def render_input():
         use_container_width=True,
         disabled=not paper_input.strip(),
     ):
-        if not os.environ.get("GROQ_API_KEY"):
+        if not _has_api_key():
             st.warning(
-                "⚠️ Please set your Groq API Key in the sidebar or .env file before proceeding."
+                "⚠️ Please set an API key (Groq or OpenAI) in the sidebar or .env file before proceeding."
             )
         else:
             user_gaps = [
@@ -277,6 +338,10 @@ def render_phase_a():
                     progress_callback=cb,
                 )
                 st.session_state.pipeline_state = state
+            except RateLimitError as e:
+                st.error(_rate_limit_banner(e))
+                st.session_state.phase = "input"
+                return
             except Exception as e:
                 st.error(f"Phase A failed: {e}")
                 return
@@ -564,6 +629,9 @@ def render_phase_b():
                     progress_callback=cb,
                 )
                 st.session_state.pipeline_state = state
+            except RateLimitError as e:
+                st.error(_rate_limit_banner(e))
+                return
             except Exception as e:
                 st.error(f"Phase B failed: {e}")
                 return

@@ -6,7 +6,7 @@ LangGraph is NOT required for MVP — it adds human-checkpoint state persistence
 and can be added in Tier 3 without changing any pipeline logic.
 
 Usage:
-    # from pipeline import run_phase_a, run_phase_b
+    from pipeline import run_phase_a, run_phase_b
 
 Phase A: paper_id → gaps + candidate papers (fast, no PDFs needed)
 Phase B: pdf_paths + phase_a state → generated learning document
@@ -20,6 +20,11 @@ from core.models import PipelineState, Paper
 from phase_a.gap_detection import detect_gaps
 from phase_a.candidates import match_candidates
 from utils.apis import fetch_paper, resolve_pdf_url, download_pdf
+
+# NOTE: phase_a.graph and all phase_b modules are imported lazily inside
+# the functions that need them.  This prevents import-time crashes when
+# heavy deps (ChromaDB, sentence-transformers, marker-pdf) are not yet
+# installed or have version conflicts — Phase A can still run cleanly.
 
 
 def run_phase_a(
@@ -53,16 +58,12 @@ def run_phase_a(
     cb(f"Looking up paper: {paper_id}…")
 
     # ── Fetch base article metadata ────────────────────────────────────────
-    try:
-        raw = fetch_paper(paper_id)
-        if not raw:
-            state.errors.append(
-                f"Could not fetch paper '{paper_id}' from Semantic Scholar. "
-                f"Check the ID format and your internet connection."
-            )
-            return state
-    except Exception as e:
-        state.errors.append(str(e))
+    raw = fetch_paper(paper_id)
+    if not raw:
+        state.errors.append(
+            f"Could not fetch paper '{paper_id}' from Semantic Scholar. "
+            f"Check the ID format and your internet connection."
+        )
         return state
 
     ext = raw.get("externalIds") or {}
@@ -144,6 +145,9 @@ def run_phase_a(
             progress_callback=cb,
         )
     except Exception as e:
+        from utils.llm import RateLimitError
+        if isinstance(e, RateLimitError):
+            raise
         state.errors.append(f"Gap detection failed: {e}")
         return state
 
@@ -165,6 +169,9 @@ def run_phase_a(
             progress_callback=cb,
         )
     except Exception as e:
+        from utils.llm import RateLimitError
+        if isinstance(e, RateLimitError):
+            raise
         state.errors.append(f"Candidate matching failed: {e}")
         return state
 
@@ -305,6 +312,9 @@ def run_phase_b(
                     )
 
         except Exception as e:
+            from utils.llm import RateLimitError
+            if isinstance(e, RateLimitError):
+                raise
             cb(f"Warning: explanation generation failed for '{gap.concept}': {e}")
             exp = _fallback_explanation(gap)
 
@@ -332,6 +342,31 @@ def run_phase_b(
                     )
 
     state.explanations = explanations
+
+    # ── Coverage verification ──────────────────────────────────────────────
+    try:
+        from eval.coverage import verify_coverage, coverage_badge
+
+        coverage = verify_coverage(state.gaps, explanations)
+        badge, label = coverage_badge(coverage.coverage_score)
+        cb(
+            f"Coverage check: {badge} {label} "
+            f"({coverage.covered} covered, {coverage.abstract_only} abstract-only, "
+            f"{coverage.missing} missing)"
+        )
+        if coverage.recommendations:
+            for rec in coverage.recommendations:
+                cb(f"  ↳ {rec}")
+        state.errors.extend(
+            [
+                f"[coverage] {r}"
+                for r in coverage.recommendations
+                if "skipped" in r or "ungrounded" in r
+            ]
+        )
+        state._coverage_report = coverage
+    except Exception as e:
+        cb(f"Coverage check failed (non-critical): {e}")
 
     # ── Generate document preamble ─────────────────────────────────────────
     cb("Generating document preamble…")
